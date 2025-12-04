@@ -62,13 +62,19 @@ public class DividaController {
         return ResponseEntity.ok(service.findById(id));
     }
 
-    @Operation(summary = "Buscar dívidas", description = "Busca dívidas com filtros (valor mínimo, máximo, conta)")
+    @Operation(
+        summary = "Buscar dívidas", 
+        description = "Busca dívidas com filtros opcionais: valor mínimo, valor máximo e/ou conta específica"
+    )
     @ApiResponse(responseCode = "200", description = "Lista de dívidas filtradas",
             content = @Content(schema = @Schema(implementation = DividaResponse.class)))
     @GetMapping("/search")
     public ResponseEntity<List<DividaResponse>> search(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Valor mínimo da dívida", example = "100.0")
             @RequestParam(required = false) Double min,
+            @io.swagger.v3.oas.annotations.Parameter(description = "Valor máximo da dívida", example = "1000.0")
             @RequestParam(required = false) Double max,
+            @io.swagger.v3.oas.annotations.Parameter(description = "ID da conta (UUID)", example = "123e4567-e89b-12d3-a456-426614174000")
             @RequestParam(required = false) UUID contaId) {
         return ResponseEntity.ok(service.search(min, max, contaId));
     }

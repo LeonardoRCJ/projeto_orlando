@@ -73,9 +73,13 @@ public class EmpresaController {
         return ResponseEntity.ok(service.update(req));
     }
 
-    @Operation(summary = "Deletar empresa", description = "Remove a empresa do usuário autenticado")
+    @Operation(
+        summary = "Deletar empresa", 
+        description = "Remove a empresa do usuário autenticado. " +
+                     "Ao deletar uma empresa, todos os devedores, contratos, dívidas e pagamentos associados serão deletados automaticamente em cascata."
+    )
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "204", description = "Empresa deletada com sucesso"),
+        @ApiResponse(responseCode = "204", description = "Empresa deletada com sucesso (incluindo todos os dados relacionados)"),
         @ApiResponse(responseCode = "404", description = "Empresa não encontrada",
                 content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })

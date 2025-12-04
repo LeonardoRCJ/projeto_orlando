@@ -70,7 +70,12 @@ public class PagamentoController {
         return ResponseEntity.ok(service.countByMetodo(metodo));
     }
 
-    @Operation(summary = "Criar pagamento", description = "Cria um novo pagamento para uma dívida da empresa")
+    @Operation(
+        summary = "Criar pagamento", 
+        description = "Cria um novo pagamento para uma dívida da empresa. " +
+                     "O valor do pagamento é automaticamente herdado da dívida associada, " +
+                     "portanto não é necessário informar o valor no request."
+    )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "201", description = "Pagamento criado com sucesso",
                 content = @Content(schema = @Schema(implementation = PagamentoResponse.class))),
@@ -86,7 +91,11 @@ public class PagamentoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(req));
     }
 
-    @Operation(summary = "Atualizar pagamento", description = "Atualiza os dados de um pagamento da empresa")
+    @Operation(
+        summary = "Atualizar pagamento", 
+        description = "Atualiza os dados de um pagamento da empresa. " +
+                     "O valor do pagamento é automaticamente atualizado com o valor da dívida associada."
+    )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Pagamento atualizado com sucesso",
                 content = @Content(schema = @Schema(implementation = PagamentoResponse.class))),
