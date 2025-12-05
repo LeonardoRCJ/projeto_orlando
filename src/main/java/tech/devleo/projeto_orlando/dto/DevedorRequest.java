@@ -1,11 +1,11 @@
 package tech.devleo.projeto_orlando.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
 public record DevedorRequest(
-        @NotBlank(message = "name is required") String name,
-        @NotBlank(message = "cpf is required") String cpf,
-        @Email(message = "invalid email") @NotBlank(message = "email is required") String email
-) {
+                @Schema(description = "Nome completo do devedor", example = "Carlos Cliente Inadimplente") @NotBlank String name,
+                @Schema(description = "CPF válido", example = "111.222.333-44") @NotBlank String cpf,
+                @Schema(description = "Email para contato/cobrança", example = "carlos.cliente@email.com") @NotBlank @Email String email) {
 }

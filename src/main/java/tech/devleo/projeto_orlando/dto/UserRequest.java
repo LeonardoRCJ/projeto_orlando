@@ -1,21 +1,17 @@
 package tech.devleo.projeto_orlando.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record UserRequest(
-        @NotBlank(message = "username is required")
-        @Size(min = 3, max = 50, message = "username must be between 3 and 50 characters")
-        String username,
+        @Schema(description = "Nome de usuário único", example = "admin_empresa")
+        @NotBlank @Size(min = 3, max = 50) String username,
         
-        @NotBlank(message = "password is required")
-        @Size(min = 6, message = "password must be at least 6 characters")
-        String password,
+        @Schema(description = "Senha (mínimo 6 caracteres)", example = "SenhaForte123!")
+        @NotBlank @Size(min = 6) String password,
         
-        @NotBlank(message = "email is required")
-        @Email(message = "email must be valid")
-        String email
-) {
-}
-
+        @Schema(description = "Email válido", example = "admin@empresa.com")
+        @NotBlank @Email String email
+    ) {}
