@@ -8,12 +8,11 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.hibernate.Hibernate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-
-import org.hibernate.Hibernate;
 
 import tech.devleo.projeto_orlando.domain.Conta;
 import tech.devleo.projeto_orlando.domain.Empresa;
@@ -55,7 +54,6 @@ public class RelatorioService {
         Relatorio r = repository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Relatório não encontrado"));
         
-        // Verificar se o relatório pertence à empresa do usuário
         Empresa empresa = empresaService.getEmpresaByCurrentUser();
         if (r.getConta() != null && r.getConta().getDevedor() != null) {
             if (!r.getConta().getDevedor().getEmpresa().getId().equals(empresa.getId())) {
@@ -95,7 +93,6 @@ public class RelatorioService {
         
         ZoneId zoneId = ZoneId.of("America/Sao_Paulo");
         
-        // Gerar relatório baseado no tipo
         switch (tipo) {
             case MANUAL:
                 if (req.valorMovimentado() == null) {
@@ -157,11 +154,9 @@ public class RelatorioService {
     private void gerarRelatorioContaEspecifica(Relatorio r, Empresa empresa) {
         Conta conta = r.getConta();
         
-        // Inicializar coleções lazy
         Hibernate.initialize(conta.getDividas());
         Hibernate.initialize(conta.getPagamentos());
         
-        // Calcular totais
         Double totalDividas = conta.getDividas().stream()
                 .mapToDouble(d -> d.getValor() != null ? d.getValor() : 0.0)
                 .sum();
@@ -187,7 +182,6 @@ public class RelatorioService {
     private void gerarRelatorioConsolidado(Relatorio r, Empresa empresa) {
         List<Conta> contas = contaRepository.findByDevedorEmpresa(empresa);
         
-        // Inicializar coleções lazy para todas as contas
         contas.forEach(c -> {
             Hibernate.initialize(c.getDividas());
             Hibernate.initialize(c.getPagamentos());
@@ -231,7 +225,6 @@ public class RelatorioService {
         Double totalPagamentos = pagamentoRepository.sumValorByPeriodo(empresa, r.getDataInicio(), r.getDataFim());
         Long qtdPagamentos = pagamentoRepository.countByPeriodo(empresa, r.getDataInicio(), r.getDataFim());
         
-        // Contar dívidas do período
         List<tech.devleo.projeto_orlando.domain.Divida> dividas = dividaRepository.findByFiadora(empresa).stream()
                 .filter(d -> d.getDataCriacao() != null && 
                         !d.getDataCriacao().isBefore(r.getDataInicio()) && 
@@ -249,34 +242,7 @@ public class RelatorioService {
                 r.getDataInicio().toLocalDate(), r.getDataFim().toLocalDate()));
         }
     }
-    
-    private void gerarRelatorioInadimplencia(Relatorio r, Empresa empresa, Double valorMinimo) {
-        List<Conta> contas = contaRepository.findByDevedorEmpresa(empresa);
-        
-        // Inicializar coleções lazy
-        contas.forEach(c -> {
-            Hibernate.initialize(c.getDividas());
-            Hibernate.initialize(c.getPagamentos());
-        });
-        
-        Double valorMin = valorMinimo != null ? valorMinimo : 0.0;
-        List<Conta> contasInadimplentes = contas.stream()
-                .filter(c -> c.getSaldo().doubleValue() > valorMin)
-                .toList();
-        
-        Double totalInadimplente = contasInadimplentes.stream()
-                .mapToDouble(c -> c.getSaldo().doubleValue())
-                .sum();
-        
-        r.setQuantidadeContas(contasInadimplentes.size());
-        r.setValorMovimentado(totalInadimplente);
-        
-        if (r.getDescricao() == null) {
-            r.setDescricao(String.format("Relatório de inadimplência - %d contas com saldo acima de R$ %.2f - Total: R$ %.2f", 
-                contasInadimplentes.size(), valorMin, totalInadimplente));
-        }
-    }
-    
+
     private void gerarRelatorioRecebimentos(Relatorio r, Empresa empresa) {
         Double totalRecebido = pagamentoRepository.sumValorByPeriodo(empresa, r.getDataInicio(), r.getDataFim());
         Long qtdPagamentos = pagamentoRepository.countByPeriodo(empresa, r.getDataInicio(), r.getDataFim());
@@ -297,7 +263,6 @@ public class RelatorioService {
         Relatorio r = repository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Relatório não encontrado"));
         
-        // Verificar se o relatório pertence à empresa do usuário
         Empresa empresa = empresaService.getEmpresaByCurrentUser();
         if (r.getConta() != null && r.getConta().getDevedor() != null) {
             if (!r.getConta().getDevedor().getEmpresa().getId().equals(empresa.getId())) {
@@ -305,7 +270,6 @@ public class RelatorioService {
             }
         }
         
-        // Atualizar apenas campos permitidos (descrição e valorMovimentado para MANUAL)
         if (req.descricao() != null) {
             r.setDescricao(req.descricao());
         }
@@ -322,38 +286,28 @@ public class RelatorioService {
         Relatorio r = repository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Relatório não encontrado"));
         
-        // Verificar se o relatório pertence à empresa do usuário
         Empresa empresa = empresaService.getEmpresaByCurrentUser();
         
-        // Relatórios sem conta (consolidados, período, etc) pertencem à empresa
-        // Relatórios com conta devem verificar se a conta pertence à empresa
         if (r.getConta() != null) {
             if (r.getConta().getDevedor() == null || 
                 !r.getConta().getDevedor().getEmpresa().getId().equals(empresa.getId())) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Relatório não pertence à sua empresa");
             }
         }
-        // Se não tem conta, é um relatório consolidado/período que pertence à empresa
         
         repository.deleteById(id);
     }
 
-    /**
-     * Gera relatório de auditoria para um período específico
-     */
     public AuditoriaResponse gerarAuditoria(LocalDate inicio, LocalDate fim) {
         Empresa empresa = empresaService.getEmpresaByCurrentUser();
         
-        // Converter as datas para ZonedDateTime (início do dia e fim do dia)
         ZoneId zoneId = ZoneId.of("America/Sao_Paulo");
         ZonedDateTime inicioZoned = inicio.atStartOfDay(zoneId);
         ZonedDateTime fimZoned = fim.atTime(LocalTime.MAX).atZone(zoneId);
         
-        // Usar os novos métodos dos Repositories para somar dívidas e contar pagamentos
         Double valorTotalDividas = dividaRepository.sumValorByPeriodo(empresa, inicioZoned, fimZoned);
         Long totalPagamentos = pagamentoRepository.countByPeriodo(empresa, inicioZoned, fimZoned);
         
-        // Retornar o novo AuditoriaResponse
         return new AuditoriaResponse(
                 valorTotalDividas != null ? valorTotalDividas : 0.0,
                 totalPagamentos != null ? totalPagamentos : 0L,

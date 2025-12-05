@@ -11,8 +11,9 @@ import org.springframework.data.repository.query.Param;
 import tech.devleo.projeto_orlando.domain.Empresa;
 import tech.devleo.projeto_orlando.domain.MetodoPagamento;
 import tech.devleo.projeto_orlando.domain.Pagamento;
+import tech.devleo.projeto_orlando.domain.Pk.PagamentoId;
 
-public interface PagamentoRepository extends JpaRepository<Pagamento, Integer> {
+public interface PagamentoRepository extends JpaRepository<Pagamento, PagamentoId> {
 
 	@Query("select p from Pagamento p where p.conta.devedor.empresa = :empresa")
 	List<Pagamento> findByEmpresa(@Param("empresa") Empresa empresa);

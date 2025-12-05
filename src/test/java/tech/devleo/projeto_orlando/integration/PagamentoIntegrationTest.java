@@ -12,6 +12,7 @@ import tech.devleo.projeto_orlando.domain.Devedor;
 import tech.devleo.projeto_orlando.domain.Divida;
 import tech.devleo.projeto_orlando.domain.MetodoPagamento;
 import tech.devleo.projeto_orlando.domain.Pagamento;
+import tech.devleo.projeto_orlando.domain.Pk.PagamentoId;
 import tech.devleo.projeto_orlando.dto.PagamentoRequest;
 import tech.devleo.projeto_orlando.dto.PagamentoResponse;
 import tech.devleo.projeto_orlando.repository.DividaRepository;
@@ -48,6 +49,7 @@ class PagamentoIntegrationTest extends BaseIntegrationTest {
         devedor.setEmail("devedor@test.com");
         devedor.setEmpresa(testEmpresa);
         
+        // Setup da conta
         conta = new Conta();
         conta.setDevedor(devedor);
         devedor.setConta(conta);
@@ -70,19 +72,21 @@ class PagamentoIntegrationTest extends BaseIntegrationTest {
         assertNotNull(response);
         assertEquals(MetodoPagamento.PIX, response.metodo());
         assertEquals(conta.getId(), response.contaId());
+        assertEquals(divida.getId(), response.dividaId());
         
-        Pagamento pagamento = pagamentoRepository.findById(response.id()).orElseThrow();
+        // Verificar no banco usando a chave composta
+        PagamentoId id = new PagamentoId(response.dividaId(), response.contaId());
+        Pagamento pagamento = pagamentoRepository.findById(id).orElseThrow();
+        
         assertNotNull(pagamento.getDivida());
-        assertEquals(divida.getValor(), pagamento.getDivida().getValor());
+        assertEquals(divida.getValor(), pagamento.getValor());
     }
 
     @Test
     void testFindAll_DeveRetornarPagamentosDaEmpresa() {
-        // Criar pagamento
         PagamentoRequest request = new PagamentoRequest(MetodoPagamento.PIX, divida.getId());
         pagamentoService.create(request);
         
-        // Buscar pagamentos
         java.util.List<PagamentoResponse> pagamentos = pagamentoService.findAll();
         
         assertEquals(1, pagamentos.size());
@@ -94,31 +98,31 @@ class PagamentoIntegrationTest extends BaseIntegrationTest {
         PagamentoRequest request = new PagamentoRequest(MetodoPagamento.CREDITO, divida.getId());
         PagamentoResponse created = pagamentoService.create(request);
         
-        PagamentoResponse response = pagamentoService.findById(created.id());
+        // Busca usando os dois IDs
+        PagamentoResponse response = pagamentoService.findById(created.dividaId(), created.contaId());
         
         assertNotNull(response);
-        assertEquals(created.id(), response.id());
+        assertEquals(created.dividaId(), response.dividaId());
+        assertEquals(created.contaId(), response.contaId());
         assertEquals(MetodoPagamento.CREDITO, response.metodo());
     }
+
     @Test
-    void testUpdate_PagamentoExistente_DeveAtualizar() {
+    void testUpdate_PagamentoExistente_DeveAtualizarMetodo() {
+        // Criar pagamento inicial como PIX
         PagamentoRequest createRequest = new PagamentoRequest(MetodoPagamento.PIX, divida.getId());
         PagamentoResponse created = pagamentoService.create(createRequest);
         
-        Divida novaDivida = new Divida();
-        novaDivida.setValor(150.0);
-        novaDivida.setConta(conta);
-        novaDivida.setFiadora(testEmpresa);
-        novaDivida = dividaRepository.save(novaDivida);
+        // Tentar atualizar para BOLETO (mantendo a mesma dívida, pois o ID é imutável)
+        PagamentoRequest updateRequest = new PagamentoRequest(MetodoPagamento.BOLETO, divida.getId());
         
-        PagamentoRequest updateRequest = new PagamentoRequest(MetodoPagamento.BOLETO, novaDivida.getId());
-        PagamentoResponse response = pagamentoService.update(created.id(), updateRequest);
+        PagamentoResponse response = pagamentoService.update(created.dividaId(), created.contaId(), updateRequest);
         
         assertEquals(MetodoPagamento.BOLETO, response.metodo());
         
-        Pagamento pagamento = pagamentoRepository.findById(response.id()).orElseThrow();
-        assertEquals(novaDivida.getId(), pagamento.getDivida().getId());
-        assertEquals(novaDivida.getValor(), pagamento.getDivida().getValor());
+        PagamentoId id = new PagamentoId(created.dividaId(), created.contaId());
+        Pagamento pagamento = pagamentoRepository.findById(id).orElseThrow();
+        assertEquals(MetodoPagamento.BOLETO, pagamento.getMetodo());
     }
 
     @Test
@@ -126,9 +130,10 @@ class PagamentoIntegrationTest extends BaseIntegrationTest {
         PagamentoRequest request = new PagamentoRequest(MetodoPagamento.PIX, divida.getId());
         PagamentoResponse created = pagamentoService.create(request);
         
-        pagamentoService.delete(created.id());
+        // Deletar passando os dois IDs
+        pagamentoService.delete(created.dividaId(), created.contaId());
         
-        assertFalse(pagamentoRepository.existsById(created.id()));
+        PagamentoId id = new PagamentoId(created.dividaId(), created.contaId());
+        assertFalse(pagamentoRepository.existsById(id));
     }
 }
-

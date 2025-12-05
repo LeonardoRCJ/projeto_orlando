@@ -4,5 +4,9 @@ import java.util.UUID;
 
 import tech.devleo.projeto_orlando.domain.MetodoPagamento;
 
-public record PagamentoResponse(Integer id, MetodoPagamento metodo, UUID contaId) {
+public record PagamentoResponse(
+    Integer dividaId, 
+    UUID contaId, 
+    MetodoPagamento metodo
+) {
 }

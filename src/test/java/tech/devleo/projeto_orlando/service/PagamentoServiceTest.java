@@ -1,8 +1,10 @@
 package tech.devleo.projeto_orlando.service;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +20,7 @@ import tech.devleo.projeto_orlando.domain.Divida;
 import tech.devleo.projeto_orlando.domain.Empresa;
 import tech.devleo.projeto_orlando.domain.MetodoPagamento;
 import tech.devleo.projeto_orlando.domain.Pagamento;
+import tech.devleo.projeto_orlando.domain.Pk.PagamentoId;
 import tech.devleo.projeto_orlando.dto.PagamentoRequest;
 import tech.devleo.projeto_orlando.repository.DividaRepository;
 import tech.devleo.projeto_orlando.repository.PagamentoRepository;
@@ -64,7 +67,6 @@ class PagamentoServiceTest {
         divida.setFiadora(empresa);
     }
 
-
     @Test
     void testCreate_SemValorInformado_DeveUsarValorDaDivida() {
         // Arrange
@@ -73,11 +75,13 @@ class PagamentoServiceTest {
             1
         );
 
-        when(dividaRepository.findById(1)).thenReturn(java.util.Optional.of(divida));
+        when(dividaRepository.findById(1)).thenReturn(Optional.of(divida));
         when(empresaService.getEmpresaByCurrentUser()).thenReturn(empresa);
-        when(pagamentoRepository.save(any())).thenAnswer(invocation -> {
+        
+        // Simular o comportamento de salvar: retornar o objeto com ID preenchido
+        when(pagamentoRepository.save(any(Pagamento.class))).thenAnswer(invocation -> {
             Pagamento p = invocation.getArgument(0);
-            p.setId(1);
+            p.setId(new PagamentoId(p.getDivida().getId(), p.getConta().getId()));
             return p;
         });
 
@@ -86,10 +90,13 @@ class PagamentoServiceTest {
 
         // Assert
         assertNotNull(response);
+        assertEquals(100.0, divida.getValor()); // O valor vem da dívida
+        
+        // Verificamos se o repository foi chamado com a chave composta correta
         verify(pagamentoRepository).save(argThat(p -> 
-            p.getValor().equals(100.0) && // Valor da dívida
-            p.getDivida().getId().equals(1) &&
-            p.getConta().getId().equals(conta.getId())
+            p.getValor().equals(100.0) &&
+            p.getId().getDividaId().equals(1) && 
+            p.getId().getContaId().equals(conta.getId())
         ));
     }
 
@@ -105,7 +112,7 @@ class PagamentoServiceTest {
             1
         );
 
-        when(dividaRepository.findById(1)).thenReturn(java.util.Optional.of(divida));
+        when(dividaRepository.findById(1)).thenReturn(Optional.of(divida));
         when(empresaService.getEmpresaByCurrentUser()).thenReturn(empresa);
 
         // Act & Assert
@@ -114,4 +121,3 @@ class PagamentoServiceTest {
         });
     }
 }
-
